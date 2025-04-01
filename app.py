@@ -9,10 +9,11 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-secret-key'
 
 # Configuration
-DATA_DIR = Path('/var/lib/render/data/') if os.environ.get('RENDER') else Path.cwd()
+IS_RENDER = os.environ.get('RENDER', '').lower() == 'true'
+DATA_DIR = Path('/opt/render/.render') if IS_RENDER else Path('data')
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_FILE = DATA_DIR / 'data.json'
-SETTLEMENT_PASSWORD = "c17jwala"  # Password for sensitive operations
+SETTLEMENT_PASSWORD = "c17jwala"
 
 # Consistent member names
 initial_members = [
@@ -76,22 +77,23 @@ def home():
 
 @app.route('/add_transaction/<lender>', methods=['GET', 'POST'])
 def add_transaction(lender):
-    """Add new transaction with self-inclusion option"""
-    data = app.config['data']
-    members = data['members']
-    
+    """Add new transaction with password protection"""
     if request.method == 'POST':
-        # Check if this is password verification step
-        if 'verify_password' in request.form:
-            if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
+        # Check if password verification phase
+        if 'password' in request.form:
+            entered_password = request.form.get('password', '').strip()
+            if entered_password != SETTLEMENT_PASSWORD:
                 flash('Incorrect password', 'error')
-                return redirect(url_for('add_transaction', lender=lender))
+                return render_template('add_transaction_password.html', lender=lender)
+            
             # Password verified - show transaction form
+            data = app.config['data']
+            members = data['members']
             return render_template('add_transaction_form.html',
                                 lender=lender,
                                 all_members=[m for m in members.keys() if m != lender])
         
-        # Process the actual transaction
+        # Process transaction data
         try:
             amount = float(request.form['amount'])
             borrowers = request.form.getlist('borrowers')
@@ -110,7 +112,7 @@ def add_transaction(lender):
             if include_self and lender not in borrowers:
                 borrowers.append(lender)
             
-            split_amount = amount / len(borrowers)
+            split_amount = round(amount / len(borrowers), 2)
             
             # Record transaction
             transaction = {
@@ -122,9 +124,11 @@ def add_transaction(lender):
                 'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
                 'include_self': include_self
             }
+            data = app.config['data']
             data['transactions'].append(transaction)
             
             # Update member balances
+            members = data['members']
             for borrower in borrowers:
                 if borrower != lender:
                     members[lender]['owed_to'][borrower] = round(
@@ -143,18 +147,19 @@ def add_transaction(lender):
             flash('Invalid amount entered', 'error')
             return redirect(url_for('add_transaction', lender=lender))
     
-    # GET request - show password verification
-    return render_template('add_transaction_verify.html', lender=lender)
+    # GET request - show password form
+    return render_template('add_transaction_password.html', lender=lender)
 
 @app.route('/settle', methods=['GET', 'POST'])
 def settle_debts():
     """Password-protected settlement plan"""
     if request.method == 'POST':
-        if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
+        entered_password = request.form.get('password', '').strip()
+        if entered_password != SETTLEMENT_PASSWORD:
             flash('Incorrect password', 'error')
             return redirect(url_for('settle_debts'))
         
-        # Password verified - calculate settlements
+        # Calculate settlements
         data = app.config['data']
         members = data['members']
         
@@ -200,7 +205,6 @@ def settle_debts():
                             settlements=settlements,
                             total=round(sum(s['amount'] for s in settlements), 2))
     
-    # GET request - show password form
     return render_template('settle_password.html')
 
 @app.route('/report/<member_name>')
@@ -236,7 +240,8 @@ def member_report(member_name):
 @app.route('/reset', methods=['POST'])
 def reset_data():
     """Password-protected data reset"""
-    if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
+    entered_password = request.form.get('password', '').strip()
+    if entered_password != SETTLEMENT_PASSWORD:
         flash('Incorrect password', 'error')
         return redirect(url_for('home'))
     
