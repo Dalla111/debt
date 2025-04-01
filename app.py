@@ -3,12 +3,15 @@ from collections import defaultdict
 import os
 import json
 from datetime import datetime
+from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-secret-key'
 
 # Configuration
-DATA_FILE = 'data.json'
+DATA_DIR = Path('/var/lib/render/data/') if os.environ.get('RENDER') else Path.cwd()
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_FILE = DATA_DIR / 'data.json'
 SETTLEMENT_PASSWORD = "c17jwala"  # Password for sensitive operations
 
 # Consistent member names
@@ -19,23 +22,29 @@ initial_members = [
 
 def load_data():
     """Load data from JSON file or initialize if doesn't exist"""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            data = json.load(f)
-            # Ensure all initial members exist
-            for member in initial_members:
-                if member not in data['members']:
-                    data['members'][member] = {'owed_to': {}, 'owed_by': {}, 'net_balance': 0}
-            return data
+    try:
+        if DATA_FILE.exists():
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                # Ensure all initial members exist
+                for member in initial_members:
+                    if member not in data['members']:
+                        data['members'][member] = {'owed_to': {}, 'owed_by': {}, 'net_balance': 0}
+                return data
+    except (json.JSONDecodeError, FileNotFoundError):
+        pass
+    
     return {
         'transactions': [],
         'members': {m: {'owed_to': {}, 'owed_by': {}, 'net_balance': 0} for m in initial_members}
     }
 
 def save_data(data):
-    """Save data to JSON file"""
-    with open(DATA_FILE, 'w') as f:
+    """Save data to JSON file with atomic write"""
+    temp_file = DATA_FILE.with_suffix('.tmp')
+    with open(temp_file, 'w') as f:
         json.dump(data, f, indent=2)
+    temp_file.replace(DATA_FILE)
 
 @app.before_request
 def before_request():
@@ -67,23 +76,22 @@ def home():
 
 @app.route('/add_transaction/<lender>', methods=['GET', 'POST'])
 def add_transaction(lender):
-    """Password-protected transaction addition"""
+    """Add new transaction with self-inclusion option"""
+    data = app.config['data']
+    members = data['members']
+    
     if request.method == 'POST':
-        # Password verification phase
-        if 'password' in request.form:
-            entered_password = request.form.get('password', '').strip()
-            if entered_password != SETTLEMENT_PASSWORD:
+        # Check if this is password verification step
+        if 'verify_password' in request.form:
+            if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
                 flash('Incorrect password', 'error')
                 return redirect(url_for('add_transaction', lender=lender))
-            
             # Password verified - show transaction form
-            data = app.config['data']
-            members = data['members']
-            return render_template('add_transaction.html',
+            return render_template('add_transaction_form.html',
                                 lender=lender,
                                 all_members=[m for m in members.keys() if m != lender])
         
-        # Transaction processing phase
+        # Process the actual transaction
         try:
             amount = float(request.form['amount'])
             borrowers = request.form.getlist('borrowers')
@@ -114,11 +122,9 @@ def add_transaction(lender):
                 'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
                 'include_self': include_self
             }
-            data = app.config['data']
             data['transactions'].append(transaction)
             
             # Update member balances
-            members = data['members']
             for borrower in borrowers:
                 if borrower != lender:
                     members[lender]['owed_to'][borrower] = round(
@@ -137,19 +143,18 @@ def add_transaction(lender):
             flash('Invalid amount entered', 'error')
             return redirect(url_for('add_transaction', lender=lender))
     
-    # GET request - show password form
-    return render_template('add_transaction_password.html', lender=lender)
+    # GET request - show password verification
+    return render_template('add_transaction_verify.html', lender=lender)
 
 @app.route('/settle', methods=['GET', 'POST'])
 def settle_debts():
     """Password-protected settlement plan"""
     if request.method == 'POST':
-        entered_password = request.form.get('password', '').strip()
-        if entered_password != SETTLEMENT_PASSWORD:
+        if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
             flash('Incorrect password', 'error')
             return redirect(url_for('settle_debts'))
         
-        # Proceed with settlement calculation if password is correct
+        # Password verified - calculate settlements
         data = app.config['data']
         members = data['members']
         
@@ -195,7 +200,7 @@ def settle_debts():
                             settlements=settlements,
                             total=round(sum(s['amount'] for s in settlements), 2))
     
-    # For GET requests, show password form
+    # GET request - show password form
     return render_template('settle_password.html')
 
 @app.route('/report/<member_name>')
@@ -231,12 +236,10 @@ def member_report(member_name):
 @app.route('/reset', methods=['POST'])
 def reset_data():
     """Password-protected data reset"""
-    entered_password = request.form.get('password', '').strip()
-    if entered_password != SETTLEMENT_PASSWORD:
+    if request.form.get('password', '').strip() != SETTLEMENT_PASSWORD:
         flash('Incorrect password', 'error')
         return redirect(url_for('home'))
     
-    # Proceed with reset
     data = {
         'transactions': [],
         'members': {m: {'owed_to': {}, 'owed_by': {}, 'net_balance': 0} 
