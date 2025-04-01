@@ -1,0 +1,97 @@
+{
+  "transactions": [
+    {
+      "lender": "shlok",
+      "amount": 1232.0,
+      "borrowers": [
+        "het",
+        "atul",
+        "tansih",
+        "pushkin"
+      ],
+      "description": "ceickwt",
+      "split_amount": 308.0,
+      "date": "2025-04-01 12:52"
+    }
+  ],
+  "members": {
+    "Monil": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "Mayank": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "danveer": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "shlok": {
+      "owed_to": {
+        "het": 308.0,
+        "atul": 308.0,
+        "tansih": 308.0,
+        "pushkin": 308.0
+      },
+      "owed_by": {},
+      "net_balance": 1232.0
+    },
+    "het": {
+      "owed_to": {},
+      "owed_by": {
+        "shlok": 308.0
+      },
+      "net_balance": -308.0
+    },
+    "atul": {
+      "owed_to": {},
+      "owed_by": {
+        "shlok": 308.0
+      },
+      "net_balance": -308.0
+    },
+    "naman": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "tanish pacheshwar": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "tansih": {
+      "owed_to": {},
+      "owed_by": {
+        "shlok": 308.0
+      },
+      "net_balance": -308.0
+    },
+    "devesh": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "yash": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    },
+    "pushkin": {
+      "owed_to": {},
+      "owed_by": {
+        "shlok": 308.0
+      },
+      "net_balance": -308.0
+    },
+    "nishant": {
+      "owed_to": {},
+      "owed_by": {},
+      "net_balance": 0
+    }
+  }
+}
