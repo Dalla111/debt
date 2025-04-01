@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ member_name }} - Borrower Details</title>
+</head>
+<body>
+    <h1>Borrower: {{ member_name }}</h1>
+    <form action="{{ url_for('borrower', member_name=member_name) }}" method="POST">
+        <h3>Select Borrowers and Settle Amount:</h3>
+        {% for borrower, debt in debts.items() %}
+            <label>
+                <input type="checkbox" name="borrowers" value="{{ borrower }}"> {{ borrower }} owes {{ debt }}
+            </label><br>
+        {% endfor %}
+        <label for="settle_amount">Settle Amount: </label>
+        <input type="number" id="settle_amount" name="settle_amount" step="0.01" required><br><br>
+        <input type="submit" value="Settle">
+    </form>
+
+    <br><br>
+    <a href="/">Go Back to Home</a>
+</body>
+</html>
