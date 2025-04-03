@@ -13,12 +13,11 @@ IS_RENDER = os.environ.get('RENDER', '').lower() == 'true'
 DATA_DIR = Path('/opt/render/.render') if IS_RENDER else Path('data')
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_FILE = DATA_DIR / 'data.json'
-SETTLEMENT_PASSWORD = "c17jwala"
+SETTLEMENT_PASSWORD = "1234"
 
 # Consistent member names
 initial_members = [
-    'Monil', 'Mayank', 'danveer', 'shlok', 'het', 'atul', 'naman',
-    'tanish pacheshwar', 'tanish', 'devesh', 'yash', 'pushkin', 'nishant'
+    'Monil', 'aryan','aravind','parth','ayush','rohit','priyesh'
 ]
 
 def load_data():
